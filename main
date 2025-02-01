@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Learning Maze</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(-45deg, #1a1a1a, #2a2a2a, #1a1a1a, #2a2a2a);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            touch-action: manipulation;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #startScreen {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        #gameContainer {
+            display: none;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 200px);
+            max-width: 800px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #playBtn {
+            padding: 15px 30px;
+            font-size: 24px;
+            background: #6a0dad;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #playBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #6a0dad;
+        }
+
+        #mazeCanvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16/9;
+            border: 2px solid #6a0dad;
+            border-radius: 10px;
+            box-shadow: 0 0 20px #6a0dad80;
+            touch-action: none;
+        }
+
+        #wordDisplay {
+            font-size: 20px;
+            margin: 15px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            min-width: 250px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        #score {
+            font-size: 18px;
+            color: #00ff00;
+            margin: 10px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .correct {
+            background: #00ff0030 !important;
+            color: #00ff00 !important;
+        }
+
+        .incorrect {
+            background: #ff000030 !important;
+            color: #ff0000 !important;
+        }
+
+        #musicBtn {
+            padding: 8px 16px;
+            margin: 10px;
+            cursor: pointer;
+            background: #6a0dad;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #musicBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px #6a0dad;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 10px;
+            touch-action: manipulation;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #6a0dad80;
+            border: 2px solid #6a0dad;
+            color: white;
+            font-size: 24px;
+            touch-action: manipulation;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #6a0dad;
+        }
+
+        #upBtn { grid-area: up; }
+        #leftBtn { grid-area: left; }
+        #rightBtn { grid-area: right; }
+        #downBtn { grid-area: down; }
+
+        @media (orientation: landscape) {
+            #controls {
+                right: 20px;
+                bottom: 50%;
+                transform: translateY(50%);
+            }
+            #gameContainer {
+                height: calc(100vh - 40px);
+            }
+        }
+
+        @media (max-width: 600px) {
+            #wordDisplay {
+                font-size: 16px;
+                min-width: auto;
+                width: 90%;
+            }
+            .control-btn {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        /* Glowing effect for turquoise blocks */
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px #40E0D0; }
+            50% { box-shadow: 0 0 20px #40E0D0; }
+            100% { box-shadow: 0 0 5px #40E0D0; }
+        }
+
+        .glow-block {
+            animation: glow 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>English Maze Challenge</h1>
+        <button id="playBtn">Play Now</button>
+        <p>Use arrows or touch controls to move<br>Translate Spanish words to clear paths!</p>
+    </div>
+
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="wordDisplay">Translate the word to move!</div>
+        <button id="musicBtn">Toggle Music</button>
+        <canvas id="mazeCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="upBtn">↑</button>
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="rightBtn">→</button>
+        <button class="control-btn" id="downBtn">↓</button>
+    </div>
+
+    <audio id="backgroundMusic" loop>
+        <source src="https://cdn.discordapp.com/attachments/806410893944160277/1333599953137700864/y2mate.com_-_Jeremy_Blake_Powerup_NO_COPYRIGHT_8bit_Music.mp3?ex=679e187d&is=679cc6fd&hm=ff290f15bbf4c5ca4773ba706297fbef7f4250e94e81299bb146b620bad4b3d5&" type="audio/mpeg">
+    </audio>
+    <audio id="winSound">
+        <source src="https://cdn.discordapp.com/attachments/806410893944160277/1333599981906427915/Cute_Bell_Sound_Effect.mp3?ex=679e1884&is=679cc704&hm=ad50e86d96f664f3d90678aa8d36c70a18bcb94eeb28ac7e2feb0a130845a12f&" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const canvas = document.getElementById('mazeCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const playBtn = document.getElementById('playBtn');
+        const wordDisplay = document.getElementById('wordDisplay');
+        const scoreElement = document.getElementById('score');
+        const bgMusic = document.getElementById('backgroundMusic');
+        const winSound = document.getElementById('winSound');
+        const musicBtn = document.getElementById('musicBtn');
+
+        // Game constants
+        const MAZE_WIDTH = 15;
+        const MAZE_HEIGHT = 10;
+        let CELL_SIZE = 40;
+
+        // Game variables
+        let player = { x: 1, y: 1 };
+        let score = 0;
+        let currentWord = null;
+        let maze = [];
+        let feedbackTimeout = null;
+        let isMoving = false;
+
+        // Vocabulary
+        const vocabulary = [
+    { spanish: "fútbol", english: "soccer" },
+    { spanish: "baloncesto", english: "basketball" },
+    { spanish: "tenis", english: "tennis" },
+    { spanish: "natación", english: "swimming" },
+    { spanish: "ciclismo", english: "cycling" },
+    { spanish: "voleibol", english: "volleyball" },
+    { spanish: "béisbol", english: "baseball" },
+    { spanish: "atletismo", english: "athletics" },
+    { spanish: "boxeo", english: "boxing" },
+    { spanish: "gimnasia", english: "gymnastics" },
+    { spanish: "león", english: "lion" },
+    { spanish: "tigre", english: "tiger" },
+    { spanish: "elefante", english: "elephant" },
+    { spanish: "jirafa", english: "giraffe" },
+    { spanish: "mono", english: "monkey" },
+    { spanish: "oso", english: "bear" },
+    { spanish: "caballo", english: "horse" },
+    { spanish: "vaca", english: "cow" },
+    { spanish: "cerdo", english: "pig" },
+    { spanish: "oveja", english: "sheep" },
+    { spanish: "camiseta", english: "t-shirt" },
+    { spanish: "pantalones", english: "pants" },
+    { spanish: "vestido", english: "dress" },
+    { spanish: "chaqueta", english: "jacket" },
+    { spanish: "zapatos", english: "shoes" },
+    { spanish: "sombrero", english: "hat" },
+    { spanish: "bufanda", english: "scarf" },
+    { spanish: "guantes", english: "gloves" },
+    { spanish: "calcetines", english: "socks" },
+    { spanish: "falda", english: "skirt" },
+    { spanish: "cabeza", english: "head" },
+    { spanish: "brazo", english: "arm" },
+    { spanish: "pierna", english: "leg" },
+    { spanish: "mano", english: "hand" },
+    { spanish: "pie", english: "foot" },
+    { spanish: "ojo", english: "eye" },
+    { spanish: "nariz", english: "nose" },
+    { spanish: "boca", english: "mouth" },
+    { spanish: "oreja", english: "ear" },
+    { spanish: "espalda", english: "back" },
+    { spanish: "manzana", english: "apple" },
+    { spanish: "plátano", english: "banana" },
+    { spanish: "naranja", english: "orange" },
+    { spanish: "uva", english: "grape" },
+    { spanish: "fresa", english: "strawberry" },
+    { spanish: "zanahoria", english: "carrot" },
+    { spanish: "lechuga", english: "lettuce" },
+    { spanish: "tomate", english: "tomato" },
+    { spanish: "papa", english: "potato" },
+    { spanish: "cebolla", english: "onion" },
+    { spanish: "rojo", english: "red" },
+    { spanish: "azul", english: "blue" },
+    { spanish: "verde", english: "green" },
+    { spanish: "amarillo", english: "yellow" },
+    { spanish: "naranja", english: "orange" },
+    { spanish: "morado", english: "purple" },
+    { spanish: "rosa", english: "pink" },
+    { spanish: "gris", english: "gray" },
+    { spanish: "blanco", english: "white" },
+    { spanish: "negro", english: "black" },
+    { spanish: "parque", english: "park" },
+    { spanish: "escuela", english: "school" },
+    { spanish: "hospital", english: "hospital" },
+    { spanish: "restaurante", english: "restaurant" },
+    { spanish: "ciudad", english: "city" },
+    { spanish: "playa", english: "beach" },
+    { spanish: "montaña", english: "mountain" },
+    { spanish: "supermercado", english: "supermarket" },
+    { spanish: "biblioteca", english: "library" },
+    { spanish: "estadio", english: "stadium" },
+    { spanish: "feliz", english: "happy" },
+    { spanish: "triste", english: "sad" },
+    { spanish: "enojado", english: "angry" },
+    { spanish: "emocionado", english: "excited" },
+    { spanish: "asustado", english: "scared" },
+    { spanish: "sorprendido", english: "surprised" },
+    { spanish: "aburrido", english: "bored" },
+    { spanish: "cansado", english: "tired" },
+    { spanish: "nervioso", english: "nervous" },
+    { spanish: "confundido", english: "confused" },
+    { spanish: "hablar", english: "to speak" },
+    { spanish: "caminar", english: "to walk" },
+    { spanish: "comer", english: "to eat" },
+    { spanish: "beber", english: "to drink" },
+    { spanish: "estudiar", english: "to study" },
+    { spanish: "trabajar", english: "to work" },
+    { spanish: "escuchar", english: "to listen" },
+    { spanish: "mirar", english: "to watch" },
+    { spanish: "bailar", english: "to dance" },
+    { spanish: "cantar", english: "to sing" },
+    { spanish: "ser", english: "to be" },
+    { spanish: "ir", english: "to go" },
+    { spanish: "tener", english: "to have" },
+    { spanish: "hacer", english: "to do/make" },
+    { spanish: "decir", english: "to say" },
+    { spanish: "ver", english: "to see" },
+    { spanish: "venir", english: "to come" },
+    { spanish: "poder", english: "to be able to" },
+    { spanish: "querer", english: "to want" },
+    { spanish: "saber", english: "to know" },
+    { spanish: "cocina", english: "kitchen" },
+    { spanish: "baño", english: "bathroom" },
+    { spanish: "sala", english: "living room" },
+    { spanish: "dormitorio", english: "bedroom" },
+    { spanish: "comedor", english: "dining room" },
+    { spanish: "garaje", english: "garage" },
+    { spanish: "jardín", english: "garden" },
+    { spanish: "techo", english: "roof" },
+    { spanish: "puerta", english: "door" },
+    { spanish: "ventana", english: "window" },
+    { spanish: "padre", english: "father" },
+    { spanish: "madre", english: "mother" },
+    { spanish: "hermano", english: "brother" },
+    { spanish: "hermana", english: "sister" },
+    { spanish: "abuelo", english: "grandfather" },
+    { spanish: "abuela", english: "grandmother" },
+    { spanish: "tío", english: "uncle" },
+    { spanish: "tía", english: "aunt" },
+    { spanish: "primo", english: "cousin" },
+    { spanish: "hijo", english: "son" },
+    { spanish: "grande", english: "big" },
+    { spanish: "pequeño", english: "small" },
+    { spanish: "alto", english: "tall" },
+    { spanish: "bajo", english: "short" },
+    { spanish: "rápido", english: "fast" },
+    { spanish: "lento", english: "slow" },
+    { spanish: "fuerte", english: "strong" },
+    { spanish: "débil", english: "weak" },
+    { spanish: "feliz", english: "happy" },
+    { spanish: "triste", english: "sad" },
+    { spanish: "sol", english: "sun" },
+    { spanish: "lluvia", english: "rain" },
+    { spanish: "nieve", english: "snow" },
+    { spanish: "viento", english: "wind" },
+    { spanish: "calor", english: "heat" },
+    { spanish: "frío", english: "cold" },
+    { spanish: "primavera", english: "spring" },
+    { spanish: "verano", english: "summer" },
+    { spanish: "otoño", english: "autumn" },
+    { spanish: "invierno", english: "winter" },
+    { spanish: "pizarra", english: "blackboard" },
+    { spanish: "tiza", english: "chalk" },
+    { spanish: "mesa", english: "table" },
+    { spanish: "silla", english: "chair" },
+    { spanish: "libro", english: "book" },
+    { spanish: "cuaderno", english: "notebook" },
+    { spanish: "lápiz", english: "pencil" },
+    { spanish: "bolígrafo", english: "pen" },
+    { spanish: "borrador", english: "eraser" },
+    { spanish: "mochila", english: "backpack" },
+    { spanish: "en", english: "in/on" },
+    { spanish: "sobre", english: "on/over" },
+    { spanish: "debajo", english: "under" },
+    { spanish: "dentro", english: "inside" },
+    { spanish: "fuera", english: "outside" },
+    { spanish: "entre", english: "between" },
+    { spanish: "al lado", english: "next to" },
+    { spanish: "cerca", english: "near" },
+    { spanish: "lejos", english: "far" },
+    { spanish: "frente a", english: "in front of" },
+    { spanish: "antes", english: "before" },
+    { spanish: "después", english: "after" },
+    { spanish: "durante", english: "during" },
+    { spanish: "hasta", english: "until" },
+    { spanish: "desde", english: "since" },
+    { spanish: "por", english: "for" },
+    { spanish: "hacia", english: "toward" },
+    { spanish: "alrededor de", english: "around" },
+    { spanish: "a", english: "at" },
+    { spanish: "coche", english: "car" },
+    { spanish: "autobús", english: "bus" },
+    { spanish: "tren", english: "train" },
+    { spanish: "avión", english: "plane" },
+    { spanish: "barco", english: "boat" },
+    { spanish: "bicicleta", english: "bicycle" },
+    { spanish: "motocicleta", english: "motorcycle" },
+    { spanish: "metro", english: "subway" },
+    { spanish: "taxi", english: "taxi" },
+    { spanish: "camión", english: "truck" },
+    { spanish: "olla", english: "pot" },
+    { spanish: "sartén", english: "pan" },
+    { spanish: "cuchillo", english: "knife" },
+    { spanish: "tenedor", english: "fork" },
+    { spanish: "cuchara", english: "spoon" },
+    { spanish: "plato", english: "plate" },
+    { spanish: "vaso", english: "glass" },
+    { spanish: "taza", english: "cup" },
+    { spanish: "microondas", english: "microwave" },
+    { spanish: "refrigerador", english: "refrigerator" },
+    { spanish: "ducha", english: "shower" },
+    { spanish: "bañera", english: "bathtub" },
+    { spanish: "lavabo", english: "sink" },
+    { spanish: "inodoro", english: "toilet" },
+    { spanish: "espejo", english: "mirror" },
+    { spanish: "toalla", english: "towel" },
+    { spanish: "jabón", english: "soap" },
+    { spanish: "cepillo de dientes", english: "toothbrush" },
+    { spanish: "pasta de dientes", english: "toothpaste" },
+    { spanish: "papel higiénico", english: "toilet paper" },
+    { spanish: "cama", english: "bed" },
+    { spanish: "almohada", english: "pillow" },
+    { spanish: "manta", english: "blanket" },
+    { spanish: "armario", english: "wardrobe" },
+    { spanish: "mesita de noche", english: "nightstand" },
+    { spanish: "lámpara", english: "lamp" },
+    { spanish: "cortinas", english: "curtains" },
+    { spanish: "silla", english: "chair" },
+    { spanish: "escritorio", english: "desk" },
+    { spanish: "yo", english: "I" },
+    { spanish: "tú", english: "you" },
+    { spanish: "él", english: "he" },
+    { spanish: "ella", english: "she" },
+    { spanish: "nosotros", english: "we" },
+    { spanish: "vosotros", english: "you (plural)" },
+    { spanish: "ellos", english: "they" },
+    { spanish: "ustedes", english: "you (formal)" },
+    { spanish: "mí", english: "me" },
+    { spanish: "ti", english: "you" },
+    { spanish: "hola", english: "hello" },
+    { spanish: "adiós", english: "goodbye" },
+    { spanish: "buenos días", english: "good morning" },
+    { spanish: "buenas tardes", english: "good afternoon" },
+    { spanish: "buenas noches", english: "good night" },
+    { spanish: "¿Cómo estás?", english: "How are you?" },
+    { spanish: "bien", english: "well" },
+    { spanish: "mal", english: "bad" },
+    { spanish: "gracias", english: "thank you" },
+    { spanish: "por favor", english: "please" },
+    { spanish: "uno", english: "one" },
+    { spanish: "dos", english: "two" },
+    { spanish: "tres", english: "three" },
+    { spanish: "cuatro", english: "four" },
+    { spanish: "cinco", english: "five" },
+    { spanish: "seis", english: "six" },
+    { spanish: "siete", english: "seven" },
+    { spanish: "ocho", english: "eight" },
+    { spanish: "nueve", english: "nine" },
+    { spanish: "diez", english: "ten" },
+    { spanish: "médico", english: "doctor" },
+    { spanish: "enfermero", english: "nurse" },
+    { spanish: "profesor", english: "teacher" },
+    { spanish: "ingeniero", english: "engineer" },
+    { spanish: "abogado", english: "lawyer" },
+    { spanish: "arquitecto", english: "architect" },
+    { spanish: "científico", english: "scientist" },
+    { spanish: "artista", english: "artist" },
+    { spanish: "músico", english: "musician" },
+    { spanish: "chef", english: "chef" },
+    { spanish: "estudiante", english: "student" },
+    { spanish: "ama de casa", english: "housewife" },
+    { spanish: "conductor", english: "driver" },
+    { spanish: "vendedor", english: "salesperson" },
+    { spanish: "cajero", english: "cashier" },
+    { spanish: "secretario", english: "secretary" },
+    { spanish: "bombero", english: "firefighter" },
+    { spanish: "policía", english: "police officer" },
+    { spanish: "soldado", english: "soldier" },
+    { spanish: "agricultor", english: "farmer" },
+    { spanish: "fiebre", english: "fever" },
+    { spanish: "dolor de cabeza", english: "headache" },
+    { spanish: "tos", english: "cough" },
+    { spanish: "gripe", english: "flu" },
+    { spanish: "resfriado", english: "cold" },
+    { spanish: "dolor de estómago", english: "stomachache" },
+    { spanish: "náuseas", english: "nausea" },
+    { spanish: "vómito", english: "vomit" },
+    { spanish: "toothache", english: "dolor de muelas" },
+    { spanish: "alergia", english: "allergy" },
+    { spanish: "ahora", english: "now" },
+    { spanish: "antes", english: "before" },
+    { spanish: "después", english: "after" },
+    { spanish: "siempre", english: "always" },
+    { spanish: "nunca", english: "never" },
+    { spanish: "pronto", english: "soon" },
+    { spanish: "tarde", english: "late" },
+    { spanish: "temprano", english: "early" },
+    { spanish: "ayer", english: "yesterday" },
+    { spanish: "hoy", english: "today" },
+    { spanish: "aquí", english: "here" },
+    { spanish: "allí", english: "there" },
+    { spanish: "cerca", english: "near" },
+    { spanish: "lejos", english: "far" },
+    { spanish: "arriba", english: "up" },
+    { spanish: "abajo", english: "down" },
+    { spanish: "dentro", english: "inside" },
+    { spanish: "fuera", english: "outside" },
+    { spanish: "adelante", english: "ahead" },
+    { spanish: "atrás", english: "behind" },
+    { spanish: "y", english: "and" },
+    { spanish: "o", english: "or" },
+    { spanish: "pero", english: "but" },
+    { spanish: "porque", english: "because" },
+    { spanish: "aunque", english: "although" },
+    { spanish: "entonces", english: "then" },
+    { spanish: "también", english: "also" },
+    { spanish: "además", english: "furthermore" },
+    { spanish: "sin embargo", english: "however" },
+    { spanish: "por lo tanto", english: "therefore" }
+];
+
+        function generateValidMaze() {
+            maze = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(0));
+            
+            // Create perimeter walls
+            for(let y = 0; y < MAZE_HEIGHT; y++) {
+                for(let x = 0; x < MAZE_WIDTH; x++) {
+                    if(y === 0 || y === MAZE_HEIGHT-1 || x === 0 || x === MAZE_WIDTH-1) {
+                        maze[y][x] = 1;
+                    }
+                }
+            }
+
+            // Add random elements
+            for(let y = 1; y < MAZE_HEIGHT-1; y++) {
+                for(let x = 1; x < MAZE_WIDTH-1; x++) {
+                    const rand = Math.random();
+                    if(rand < 0.1) maze[y][x] = 1;
+                    else if(rand < 0.3) maze[y][x] = 2; // Turquoise blocks
+                }
+            }
+
+            // Ensure clear path
+            maze[1][1] = 0;
+            maze[1][2] = 0;
+            maze[2][1] = 0;
+            maze[MAZE_HEIGHT-2][MAZE_WIDTH-2] = 0;
+            maze[MAZE_HEIGHT-3][MAZE_WIDTH-2] = 0;
+            maze[MAZE_HEIGHT-2][MAZE_WIDTH-3] = 0;
+        }
+
+        function drawMaze() {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for(let y = 0; y < maze.length; y++) {
+                for(let x = 0; x < maze[y].length; x++) {
+                    if(maze[y][x] === 1) {
+                        ctx.fillStyle = '#6a0dad';
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    } else if(maze[y][x] === 2) {
+                        ctx.fillStyle = '#40E0D0'; // Turquoise color
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                        // Add black border to turquoise blocks
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                        // Add glowing effect to turquoise blocks
+                        ctx.beginPath();
+                        ctx.arc(
+                            x * CELL_SIZE + CELL_SIZE/2,
+                            y * CELL_SIZE + CELL_SIZE/2,
+                            CELL_SIZE/2, 0, Math.PI * 2
+                        );
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#40E0D0'; // Turquoise glow
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Draw exit
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect((MAZE_WIDTH-2)*CELL_SIZE, (MAZE_HEIGHT-2)*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+            // Draw player
+            ctx.beginPath();
+            ctx.arc(
+                player.x * CELL_SIZE + CELL_SIZE/2,
+                player.y * CELL_SIZE + CELL_SIZE/2,
+                CELL_SIZE/3, 0, Math.PI * 2
+            );
+            ctx.fillStyle = '#00ffff';
+            ctx.fill();
+        }
+
+        function checkCollision(x, y) {
+            return maze[y][x] === 1;
+        }
+
+        function checkWordBlock(x, y) {
+            return maze[y][x] === 2;
+        }
+
+        function getRandomWord() {
+            return vocabulary[Math.floor(Math.random() * vocabulary.length)];
+        }
+
+        function normalizeString(str) {
+            return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function clearFeedback() {
+            wordDisplay.classList.remove('correct', 'incorrect');
+            wordDisplay.textContent = 'Translate the word to move!';
+        }
+
+        function movePlayer(dx, dy) {
+            if (isMoving) return;
+            isMoving = true;
+            
+            const newX = player.x + dx;
+            const newY = player.y + dy;
+
+            if(checkWordBlock(newX, newY)) {
+                if(feedbackTimeout) {
+                    clearTimeout(feedbackTimeout);
+                    clearFeedback();
+                }
+
+                currentWord = getRandomWord();
+                const answer = prompt(`Translate "${currentWord.spanish}" to English:`);
+                const normalizedAnswer = normalizeString(answer || "");
+                const normalizedCorrect = normalizeString(currentWord.english);
+
+                if(normalizedAnswer === normalizedCorrect) {
+                    wordDisplay.classList.add('correct');
+                    wordDisplay.textContent = "Correct!";
+                    score += 10;
+                    maze[newY][newX] = 0;
+                    player.x = newX;
+                    player.y = newY;
+                } else {
+                    wordDisplay.classList.add('incorrect');
+                    wordDisplay.textContent = `Wrong! Correct answer: ${currentWord.english}`;
+                    score = Math.max(0, score - 5);
+                }
+
+                feedbackTimeout = setTimeout(clearFeedback, 2000);
+            }
+            else if(!checkCollision(newX, newY)) {
+                player.x = newX;
+                player.y = newY;
+            }
+
+            scoreElement.textContent = `Score: ${score}`;
+            
+            if(player.x === MAZE_WIDTH-2 && player.y === MAZE_HEIGHT-2) {
+                winSound.play();
+                alert(`Congratulations! Final Score: ${score}`);
+                resetGame();
+            }
+            drawMaze();
+            
+            setTimeout(() => {
+                isMoving = false;
+            }, 100);
+        }
+
+        function resetGame() {
+            score = 0;
+            player = { x: 1, y: 1 };
+            scoreElement.textContent = `Score: ${score}`;
+            generateValidMaze();
+            drawMaze();
+        }
+
+        function initControls() {
+            const controls = {
+                up: document.getElementById('upBtn'),
+                left: document.getElementById('leftBtn'),
+                right: document.getElementById('rightBtn'),
+                down: document.getElementById('downBtn')
+            };
+
+            const handleControl = (dx, dy) => (e) => {
+                e.preventDefault();
+                movePlayer(dx, dy);
+            };
+
+            // Touch and mouse events for controls
+            Object.entries(controls).forEach(([direction, button]) => {
+                const [dx, dy] = {
+                    up: [0, -1],
+                    down: [0, 1],
+                    left: [-1, 0],
+                    right: [1, 0]
+                }[direction];
+
+                button.addEventListener('touchstart', handleControl(dx, dy));
+                button.addEventListener('mousedown', handleControl(dx, dy));
+                
+                // Prevent holding button on mobile
+                button.addEventListener('touchend', (e) => e.preventDefault());
+            });
+        }
+
+        function resizeCanvas() {
+            const containerWidth = gameContainer.clientWidth;
+            const containerHeight = gameContainer.clientHeight;
+            
+            // Calculate the maximum size while maintaining 16:9 aspect ratio
+            let canvasWidth = containerWidth;
+            let canvasHeight = containerWidth * (9/16);
+            
+            if (canvasHeight > containerHeight) {
+                canvasHeight = containerHeight;
+                canvasWidth = canvasHeight * (16/9);
+            }
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            CELL_SIZE = Math.min(canvasWidth/MAZE_WIDTH, canvasHeight/MAZE_HEIGHT);
+            
+            drawMaze();
+        }
+
+        // Initialize game
+        playBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            gameContainer.style.display = 'flex';
+            resetGame();
+            resizeCanvas();
+            bgMusic.play().catch(() => {});
+        });
+
+        musicBtn.addEventListener('click', () => {
+            if(bgMusic.paused) {
+                bgMusic.play();
+                musicBtn.textContent = "Pause Music";
+            } else {
+                bgMusic.pause();
+                musicBtn.textContent = "Play Music";
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(resizeCanvas, 100);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initControls();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': case 'arrowup': movePlayer(0, -1); break;
+                case 's': case 'arrowdown': movePlayer(0, 1); break;
+                case 'a': case 'arrowleft': movePlayer(-1, 0); break;
+                case 'd': case 'arrowright': movePlayer(1, 0); break;
+            }
+        });
+    </script>
+</body>
+</html>
